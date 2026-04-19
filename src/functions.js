@@ -655,14 +655,6 @@ export function decodeStructId(id){
     return { s: segments, a: c_action };
 }
 
-const tagDebug = false;
-export function tagEvent(event, data){
-    try {
-        data['debug_mode'] = tagDebug;
-        gtag('event', event, data);
-    } catch (err){}
-}
-
 export function resetResBuffer(){
     // During fastLoop, temporarily increase the maximum storage to avoid unfortunate cases where
     // storage cannot be maximized as a result of consuming a resource after it is produced.

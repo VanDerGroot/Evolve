@@ -1,5 +1,5 @@
 import { global, save, seededRandom, webWorker, clearSavedMessages, clearStates } from './vars.js';
-import { tagEvent, calcPrestige, updateResetStats } from './functions.js';
+import { calcPrestige, updateResetStats } from './functions.js';
 import { races, planetTraits } from './races.js';
 import { unlockAchieve, unlockFeat, checkAchievements, universeAffix, alevel } from './achieve.js';
 
@@ -10,10 +10,6 @@ export function warhead(){
             save.setItem('evolveBak',LZString.compressToUTF16(JSON.stringify(global)));
         }
         clearSavedMessages();
-
-        tagEvent('reset',{
-            'end': 'mad'
-        });
 
         let god = global.race.species;
         let old_god = global.race.gods;
@@ -89,10 +85,6 @@ export function bioseed(){
         save.setItem('evolveBak',LZString.compressToUTF16(JSON.stringify(global)));
     }
     clearSavedMessages();
-
-    tagEvent('reset',{
-        'end': 'bioseed'
-    });
 
     let god = global.race.species;
     let old_god = global.race.gods;
@@ -233,10 +225,6 @@ export function cataclysm_end(){
             save.setItem('evolveBak',LZString.compressToUTF16(JSON.stringify(global)));
         }
 
-        tagEvent('reset',{
-            'end': 'cataclysm'
-        });
-
         clearSavedMessages();
 
         let gains = calcPrestige('cataclysm');
@@ -322,10 +310,6 @@ export function big_bang(){
         save.setItem('evolveBak',LZString.compressToUTF16(JSON.stringify(global)));
     }
     clearSavedMessages();
-
-    tagEvent('reset',{
-        'end': 'blackhole'
-    });
 
     unlockAchieve(`extinct_${global.race.species}`);
     switch (global.race.universe){
@@ -441,10 +425,6 @@ export function vacuumCollapse(){
         }
         clearSavedMessages();
 
-        tagEvent('reset',{
-            'end': 'vacuum'
-        });
-
         unlockAchieve(`extinct_${global.race.species}`);
         unlockAchieve(`pw_apocalypse`);
 
@@ -531,10 +511,6 @@ export function vacuumCollapse(){
 // Ascension
 export function ascend(){
     clearSavedMessages();
-
-    tagEvent('reset',{
-        'end': 'ascend'
-    });
 
     let god = global.race.species;
     let old_god = global.race.gods;
@@ -638,10 +614,6 @@ export function descension(){
         save.setItem('evolveBak',LZString.compressToUTF16(JSON.stringify(global)));
     }
     clearSavedMessages();
-
-    tagEvent('reset',{
-        'end': 'descension'
-    });
 
     unlockAchieve(`squished`,true);
     unlockAchieve(`extinct_${global.race.species}`);
@@ -748,10 +720,6 @@ export function descension(){
 export function apotheosis(){
     clearSavedMessages();
 
-    tagEvent('reset',{
-        'end': 'apotheosis'
-    });
-
     let god = global.race.species;
     let old_god = global.race.gods;
     let orbit = global.city.calendar.orbit;
@@ -844,10 +812,6 @@ export function apotheosis(){
 export function terraform(planet){
     clearSavedMessages();
 
-    tagEvent('reset',{
-        'end': 'terraform'
-    });
-
     let god = global.race.species;
     let old_god = global.race.gods;
     let orbit = global.city.calendar.orbit;
@@ -937,10 +901,6 @@ export function aiApocalypse(){
     }
     clearSavedMessages();
 
-    tagEvent('reset',{
-        'end': 'ai apocalypse'
-    });
-
     unlockAchieve(`extinct_${global.race.species}`);
     unlockAchieve(`obsolete`);
 
@@ -1015,10 +975,6 @@ export function matrix(){
         save.setItem('evolveBak',LZString.compressToUTF16(JSON.stringify(global)));
     }
     clearSavedMessages();
-
-    tagEvent('reset',{
-        'end': 'matrix'
-    });
 
     let god = global.race.species;
     let old_god = global.race.gods;
@@ -1101,10 +1057,6 @@ export function retirement(){
     }
     clearSavedMessages();
 
-    tagEvent('reset',{
-        'end': 'retired'
-    });
-
     let god = global.race.species;
     let old_god = global.race.gods;
     let genus = races[god].type === 'hybrid' ? global.race.maintype : races[god].type;
@@ -1185,10 +1137,6 @@ export function gardenOfEden(){
         save.setItem('evolveBak',LZString.compressToUTF16(JSON.stringify(global)));
     }
     clearSavedMessages();
-
-    tagEvent('reset',{
-        'end': 'eden'
-    });
 
     let god = global.race.species;
     let old_god = global.race.gods;

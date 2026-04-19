@@ -1,5 +1,5 @@
 import { global, seededRandom, p_on, breakdown } from './vars.js';
-import { vBind, popover, tagEvent, calcQueueMax, calcRQueueMax, clearElement, adjustCosts, decodeStructId, timeCheck, arpaTimeCheck, hoovedRename } from './functions.js';
+import { vBind, popover, calcQueueMax, calcRQueueMax, clearElement, adjustCosts, decodeStructId, timeCheck, arpaTimeCheck, hoovedRename } from './functions.js';
 import { races } from './races.js';
 import { actions, checkCityRequirements, housingLabel, wardenLabel, updateQueueNames, checkAffordable, drawTech, drawCity } from './actions.js';
 import { govCivics, govTitle } from './civics.js';
@@ -700,9 +700,6 @@ export function drawnGovernOffice(){
                         }
                     });
                 }
-                tagEvent('govtask',{
-                    'task': t
-                });
                 vBind({el: `#race`},'update');
             },
             showTask(t){
@@ -821,9 +818,6 @@ function appointGovernor(){
                     calcQueueMax();
                     calcRQueueMax();
                     defineGovernor();
-                    tagEvent('governor',{
-                        'appoint': global.race.governor.g.bg
-                    });
                 }
             }
         }

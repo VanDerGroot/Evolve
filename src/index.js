@@ -1,7 +1,7 @@
 import { global, tmp_vars, save, message_logs, message_filters, webWorker } from './vars.js';
 import { loc, locales } from './locale.js';
 import { setupStats, alevel } from './achieve.js';
-import { vBind, initMessageQueue, clearElement, flib, tagEvent, gameLoop, popover, clearPopper, powerGrid, easterEgg, trickOrTreat, drawIcon } from './functions.js';
+import { vBind, initMessageQueue, clearElement, flib, gameLoop, popover, clearPopper, powerGrid, easterEgg, trickOrTreat, drawIcon } from './functions.js';
 import { tradeRatio, atomic_mass, supplyValue, marketItem, containerItem, loadEjector, loadSupply, loadAlchemy, initResourceTabs, drawResourceTab, tradeSummery } from './resources.js';
 import { defineJobs, } from './jobs.js';
 import { clearSpyopDrag } from './governor.js';
@@ -332,12 +332,10 @@ export function loadTab(tab){
         clearElement($(`#mTabObserve`));
     }
     else {
-        tagEvent('page_view',{ page_title: `Evolve - All Tabs` });
     }
     switch (tab){
         case 0:
             if (!global.settings.tabLoad){
-                tagEvent('page_view',{ page_title: `Evolve - Evolution` });
                 drawEvolution();
             }
             break;
@@ -345,7 +343,6 @@ export function loadTab(tab){
         case 'mTabCivil':
             {
                 if (!global.settings.tabLoad){
-                    tagEvent('page_view',{ page_title: `Evolve - Civilization` });
                 }
                 $(`#mTabCivil`).append(`<b-tabs class="resTabs" v-model="s.spaceTabs" :animated="s.animated" @input="swapTab">
                     <b-tab-item id="city" :visible="s.showCity">
@@ -470,7 +467,6 @@ export function loadTab(tab){
         case 'mTabCivic':
             {
                 if (!global.settings.tabLoad){
-                    tagEvent('page_view',{ page_title: `Evolve - Civics` });
                 }
                 $(`#mTabCivic`).append(`<b-tabs class="resTabs" v-model="s.govTabs" :animated="s.animated" @input="swapTab">
                     <b-tab-item id="civic">
@@ -647,7 +643,6 @@ export function loadTab(tab){
         case 'mTabResearch':
             {
                 if (!global.settings.tabLoad){
-                    tagEvent('page_view',{ page_title: `Evolve - Research` });
                 }
                 $(`#mTabResearch`).append(`<div id="resQueue" class="resQueue" v-show="rq.display"></div>
                 <b-tabs class="resTabs" v-model="s.resTabs" :animated="s.animated">
@@ -686,7 +681,6 @@ export function loadTab(tab){
         case 'mTabResource':
             {
                 if (!global.settings.tabLoad){
-                    tagEvent('page_view',{ page_title: `Evolve - Resources` });
                 }
                 $(`#mTabResource`).append(`<b-tabs class="resTabs" v-model="s.marketTabs" :animated="s.animated" @input="swapTab">
                     <b-tab-item id="market" :visible="s.showMarket">
@@ -806,7 +800,6 @@ export function loadTab(tab){
         case 'mTabArpa':
             {
                 if (!global.settings.tabLoad){
-                    tagEvent('page_view',{ page_title: `Evolve - Arpa` });
                 }
                 $(`#mTabArpa`).append(`<div id="apra" class="arpa">
                     <b-tabs class="resTabs" v-model="s.arpa.arpaTabs" :animated="s.animated">
@@ -837,7 +830,6 @@ export function loadTab(tab){
         case 'mTabStats':
             {
                 if (!global.settings.tabLoad){
-                    tagEvent('page_view',{ page_title: `Evolve - Stats` });
                 }
                 $(`#mTabStats`).append(`<b-tabs class="resTabs" v-model="s.statsTabs" :animated="s.animated">
                     <b-tab-item id="stats">
@@ -872,13 +864,11 @@ export function loadTab(tab){
             break;
         case 7:
             if (!global.settings.tabLoad){
-                tagEvent('page_view',{ page_title: `Evolve - Settings` });
             }
             break;
         case 'mTabObserve':
         default:
             if (!global.settings.tabLoad){
-                tagEvent('page_view',{ page_title: `Evolve - Hell Observation` });
             }
             if (global.portal.observe){
                 drawHellObservations(true);
