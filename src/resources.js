@@ -2743,29 +2743,53 @@ function loadMarket(){
 
     if (!global.race['no_trade']){
         market.append($(`<h3 class="is-sr-only">${loc('resource_trade_qty')}</h3>`));
-        market.append($(`<b-field class="market"><span class="button has-text-danger" role="button" @click="less">-</span><b-numberinput :input="val()" min="1" :max="limit()" v-model="qty" :controls="false"></b-numberinput><span class="button has-text-success" role="button" @click="more">+</span></b-field>`));
+        market.append($(`<div class="market-slider" @click="startEdit"><b-slider v-if="!editing" :min="sliderMin()" :max="sliderMax()" v-model="sliderValue" :indicator="true" :custom-formatter="formatQty" size="is-medium" @input="updateQty"></b-slider><b-numberinput v-else :input="val()" min="1" :max="limit()" v-model="qty" :controls="false" @blur="stopEdit" @keyup.enter="stopEdit" ref="qtyInput" style="background-color: #333; color: white;"></b-numberinput></div>`));
     }
 
     vBind({
         el: `#market-qty`,
-        data: global.city.market,
+        data: Object.assign({}, global.city.market, { editing: false, sliderValue: Math.log(Math.max(1, Math.min(tradeMax(), global.city.market.qty))) }),
         methods: {
             val(){
-                if (global.city.market.qty < 1){
+                if (!isFinite(global.city.market.qty) || global.city.market.qty < 1){
                     global.city.market.qty = 1;
                 }
                 else if (global.city.market.qty > tradeMax()){
                     global.city.market.qty = tradeMax();
                 }
+                this.sliderValue = Math.log(this.qty);
             },
             limit(){
                 return tradeMax();
             },
-            less(){
-                global.city.market.qty -= keyMultiplier();
+            sliderMin(){
+                return 0; // log(1) = 0
             },
-            more(){
-                global.city.market.qty += keyMultiplier();
+            sliderMax(){
+                return Math.log(Math.max(1, this.limit()));
+            },
+            formatQty(value){
+                if (!isFinite(value)) return 1;
+                return Math.round(Math.exp(value));
+            },
+            updateQty(){
+                if (!isFinite(this.sliderValue)) {
+                    this.sliderValue = 0;
+                }
+                this.sliderValue = Math.max(0, Math.min(this.sliderMax(), this.sliderValue));
+                this.qty = Math.max(1, Math.min(this.limit(), Math.round(Math.exp(this.sliderValue))));
+            },
+            startEdit(){
+                this.editing = true;
+                this.$nextTick(() => {
+                    if (this.$refs.qtyInput) {
+                        this.$refs.qtyInput.focus();
+                        this.$refs.qtyInput.setSelectionRange(this.$refs.qtyInput.value.length, this.$refs.qtyInput.value.length);
+                    }
+                });
+            },
+            stopEdit(){
+                this.editing = false;
             }
         }
     });
