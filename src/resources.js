@@ -801,23 +801,63 @@ const resourceTooltipGroups = {
     infernal: new Set(['Corrupt_Gem', 'Codex', 'Demonic_Essence', 'Blessed_Essence']),
 };
 
+function escapeTooltipHtml(value){
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function resourceTooltipHtml(value, color='warning'){
+    return `<span class="has-text-${color}">${escapeTooltipHtml(value)}</span>`;
+}
+
+function resourceTooltipCraftIngredients(name){
+    let costs = craftCost(true);
+    if (!costs.hasOwnProperty(name)){
+        return false;
+    }
+
+    let ingredients = costs[name].map(function(ingredient){
+        return `${resourceTooltipHtml(sizeApproximation(ingredient.a, 1))} ${resourceTooltipHtml(resourceTooltipName(ingredient.r), 'caution')}`;
+    });
+
+    if (ingredients.length === 1){
+        return ingredients[0];
+    }
+    if (ingredients.length === 2){
+        return `${ingredients[0]} and ${ingredients[1]}`;
+    }
+    return `${ingredients.slice(0, -1).join(', ')}, and ${ingredients[ingredients.length - 1]}`;
+}
+
+function resourceTooltipCraftedFrom(name){
+    let ingredients = resourceTooltipCraftIngredients(name);
+    if (!ingredients){
+        return false;
+    }
+    return $(`<span class="has-text-info">${loc('resource_crafted_from_desc',[ingredients])}</span>`);
+}
+
 function resourceTooltipName(name){
     return global.resource && global.resource[name] && global.resource[name].name ? global.resource[name].name : loc(`resource_${name}_name`);
 }
 
 function resourceTooltipContent(name){
-    let displayName = resourceTooltipName(name);
+    let displayName = resourceTooltipHtml(resourceTooltipName(name), 'caution');
     let desc = $(`<div></div>`);
     switch (name){
         case 'Plasmid':
             {
                 let potential = global.race.p_mutation + (global.race['wish'] && global.race['wishStats'] ? global.race.wishStats.plas : 0);
                 let active = global.race['no_plasmid'] ? Math.min(potential, global.prestige.Plasmid.count) : global.prestige.Plasmid.count;
-                desc.append($(`<span>${loc(`resource_${name}_desc`,[active, +(plasmidBonus('plasmid') * 100).toFixed(2)])}</span>`));
+                desc.append($(`<span>${loc(`resource_${name}_desc`,[resourceTooltipHtml(active), resourceTooltipHtml(+(plasmidBonus('plasmid') * 100).toFixed(2))])}</span>`));
                 if (global.genes['store'] && (global.race.universe !== 'antimatter' || global.genes['bleed'] >= 3)){
                     let plasmidSpatial = spatialReasoning(1,'plasmid');
                     if (plasmidSpatial > 1){
-                        desc.append($(`<span> ${loc(`resource_Plasmid_desc2`,[+((plasmidSpatial - 1) * 100).toFixed(2)])}</span>`));
+                        desc.append($(`<span> ${loc(`resource_Plasmid_desc2`,[resourceTooltipHtml(+((plasmidSpatial - 1) * 100).toFixed(2))])}</span>`));
                     }
                 }
             }
@@ -825,11 +865,11 @@ function resourceTooltipContent(name){
 
         case 'AntiPlasmid':
             {
-                desc.append($(`<span>${loc(`resource_${name}_desc`,[global.prestige.AntiPlasmid.count, +(plasmidBonus('antiplasmid') * 100).toFixed(2)])}</span>`));
+                desc.append($(`<span>${loc(`resource_${name}_desc`,[resourceTooltipHtml(global.prestige.AntiPlasmid.count), resourceTooltipHtml(+(plasmidBonus('antiplasmid') * 100).toFixed(2))])}</span>`));
                 let antiSpatial = spatialReasoning(1,'anti');
                 if (global.genes['store'] && (global.race.universe === 'antimatter' || global.genes['bleed'] >= 3)){
                     if (antiSpatial > 1){
-                        desc.append($(`<span> ${loc(`resource_Plasmid_desc2`,[+((antiSpatial - 1) * 100).toFixed(2)])}</span>`));
+                        desc.append($(`<span> ${loc(`resource_Plasmid_desc2`,[resourceTooltipHtml(+((antiSpatial - 1) * 100).toFixed(2))])}</span>`));
                     }
                 }
             }
@@ -837,11 +877,11 @@ function resourceTooltipContent(name){
 
         case 'Phage':
             {
-                desc.append($(`<span>${loc(global.prestige.AntiPlasmid.count > 0 ? `resource_Phage_desc2` : `resource_Phage_desc`,[250 + global.prestige.Phage.count])}</span>`));
+                desc.append($(`<span>${loc(global.prestige.AntiPlasmid.count > 0 ? `resource_Phage_desc2` : `resource_Phage_desc`,[resourceTooltipHtml(250 + global.prestige.Phage.count)])}</span>`));
                 let phageSpatial = spatialReasoning(1,'phage');
                 if (global.genes['store'] && global.genes['store'] >= 4){
                     if (phageSpatial > 1){
-                        desc.append($(`<span> ${loc(`resource_Plasmid_desc2`,[+((phageSpatial - 1) * 100).toFixed(2)])}</span>`));
+                        desc.append($(`<span> ${loc(`resource_Plasmid_desc2`,[resourceTooltipHtml(+((phageSpatial - 1) * 100).toFixed(2))])}</span>`));
                     }
                 }
             }
@@ -851,43 +891,43 @@ function resourceTooltipContent(name){
             {
                 switch (global.race.universe){
                     case 'standard':
-                        desc.append($(`<span>${loc(`resource_${name}_desc_s`,[+((darkEffect('standard') - 1) * 100).toFixed(2)])}</span>`));
+                        desc.append($(`<span>${loc(`resource_${name}_desc_s`,[resourceTooltipHtml(+((darkEffect('standard') - 1) * 100).toFixed(2))])}</span>`));
                         break;
 
                     case 'evil':
-                        desc.append($(`<span>${loc(`resource_${name}_desc_e`,[+((darkEffect('evil') - 1) * 100).toFixed(2),+((darkEffect('evil',true) - 1) * 100).toFixed(2)])}</span>`));
+                        desc.append($(`<span>${loc(`resource_${name}_desc_e`,[resourceTooltipHtml(+((darkEffect('evil') - 1) * 100).toFixed(2)),resourceTooltipHtml(+((darkEffect('evil',true) - 1) * 100).toFixed(2))])}</span>`));
                         break;
 
                     case 'micro':
-                        desc.append($(`<span>${loc(`resource_${name}_desc_m`,[darkEffect('micro',false),darkEffect('micro',true)])}</span>`));
+                        desc.append($(`<span>${loc(`resource_${name}_desc_m`,[resourceTooltipHtml(darkEffect('micro',false)),resourceTooltipHtml(darkEffect('micro',true))])}</span>`));
                         break;
 
                     case 'heavy':
                         let hDE = darkEffect('heavy');
                         let space = 0.25 + (0.5 * hDE);
                         let int = 0.2 + (0.3 * hDE);
-                        desc.append($(`<span>${loc(`resource_${name}_desc_h`,[+(space * 100).toFixed(4),+(int * 100).toFixed(4)])}</span>`));
+                        desc.append($(`<span>${loc(`resource_${name}_desc_h`,[resourceTooltipHtml(+(space * 100).toFixed(4)),resourceTooltipHtml(+(int * 100).toFixed(4))])}</span>`));
                         break;
 
                     case 'antimatter':
-                        desc.append($(`<span>${loc(`resource_${name}_desc_a`,[+((darkEffect('antimatter') - 1) * 100).toFixed(2)])}</span>`));
+                        desc.append($(`<span>${loc(`resource_${name}_desc_a`,[resourceTooltipHtml(+((darkEffect('antimatter') - 1) * 100).toFixed(2))])}</span>`));
                         break;
 
                     case 'magic':
-                        desc.append($(`<span>${loc(`resource_${name}_desc_mg`,[loc('resource_Mana_name'),+((darkEffect('magic') - 1) * 100).toFixed(2)])}</span>`));
+                        desc.append($(`<span>${loc(`resource_${name}_desc_mg`,[resourceTooltipHtml(loc('resource_Mana_name'), 'caution'),resourceTooltipHtml(+((darkEffect('magic') - 1) * 100).toFixed(2))])}</span>`));
                         break;
                 }
             }
             break;
 
         case 'Harmony':
-            desc.append($(`<span>${loc(`resource_${name}_desc`,[global.race.universe === 'standard' ? 0.1 : 1, harmonyEffect()])}</span>`));
+            desc.append($(`<span>${loc(`resource_${name}_desc`,[resourceTooltipHtml(global.race.universe === 'standard' ? 0.1 : 1), resourceTooltipHtml(harmonyEffect())])}</span>`));
             break;
 
         case 'AICore':
             {
                 let bonus = +((1 - (0.99 ** global.prestige.AICore.count)) * 100).toFixed(2);
-                desc.append($(`<span>${loc(`resource_${name}_desc`,[bonus])}</span>`));
+                desc.append($(`<span>${loc(`resource_${name}_desc`,[resourceTooltipHtml(bonus)])}</span>`));
             }
             break;
 
@@ -895,10 +935,10 @@ function resourceTooltipContent(name){
             {
                 let coiled = global.prestige.Supercoiled.count;
                 let bonus = (coiled / (coiled + 5000)) * 100;
-                desc.append($(`<span>${loc(`resource_${name}_desc`,[+bonus.toFixed(2)])}</span>`));
+                desc.append($(`<span>${loc(`resource_${name}_desc`,[resourceTooltipHtml(+bonus.toFixed(2))])}</span>`));
                 if (global.genes.hasOwnProperty('trader') && global.genes.trader >= 2){
                     let trade = (coiled / (coiled + 500)) * 100;
-                    desc.append($(`<span> ${loc(`resource_${name}_trade_desc`,[+trade.toFixed(2)])}</span>`));
+                    desc.append($(`<span> ${loc(`resource_${name}_trade_desc`,[resourceTooltipHtml(+trade.toFixed(2))])}</span>`));
                 }
             }
             break;
@@ -932,6 +972,11 @@ function resourceTooltipContent(name){
                 desc.append($(`<span>${loc('resource_exotic_desc',[displayName])}</span>`));
             }
             break;
+    }
+
+    let craftedFrom = resourceTooltipCraftedFrom(name);
+    if (craftedFrom){
+        desc.append(craftedFrom);
     }
     return desc;
 }

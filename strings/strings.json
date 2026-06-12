@@ -6508,6 +6508,7 @@
   "resource_genetic_desc": "%0: a genetics resource used for CRISPR and mutation systems.",
   "resource_storage_desc": "%0: expands your storage capacity.",
   "resource_infernal_desc": "%0: a special resource used for infernal and realm-specific upgrades.",
+  "resource_crafted_from_desc": "Crafted from %0.",
   "resource_Plasmid_name": "Plasmid",
   "resource_Plasmid_plural_name": "Plasmids",
   "resource_Plasmid_desc": "%0 active Plasmids are providing a global production boost of %1%.",
