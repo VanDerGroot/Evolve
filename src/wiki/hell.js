@@ -22,7 +22,7 @@ export function hellPage(content){
     infoBoxBuilder(mainContent,{ name: 'strategy', template: 'hell', paragraphs: 3 });
     sideMenu('add',`hell-gameplay`,'strategy',loc('wiki_hell_strategy'));
 
-    let soul = infoBoxBuilder(mainContent,{ name: 'soul_gem', template: 'hell', paragraphs: 4,
+    let soul = infoBoxBuilder(mainContent,{ name: 'soul_gem', template: 'hell', paragraphs: 8, break: [5],
         para_data: {
             1: [loc('wiki_hell_soul_gem'),loc('tab_portal')],
             3: [loc('tech_demon_attractor')]
@@ -33,7 +33,7 @@ export function hellPage(content){
     //soul_extra.append(`<div>${loc('wiki_hell_sim',[`<a href="https://zarakon.github.io/EvolveHellSim/" target="_blank">${loc(`wiki_hell_sim2`)}</a>`,'Zarakon'])}</div>`);
     sideMenu('add',`hell-gameplay`,'soul_gem',loc('wiki_hell_soul_gem'));
 
-    infoBoxBuilder(mainContent,{ name: 'infernite', template: 'hell', paragraphs: 4 });
+    infoBoxBuilder(mainContent,{ name: 'infernite', template: 'hell', paragraphs: 13, break: [5, 11], h_level: 2 });
     sideMenu('add',`hell-gameplay`,'infernite',loc('wiki_hell_infernite'));
 
     mainContent.append(`<h2 class="header has-text-caution">${loc('wiki_hell_deep')}</h2>`);
