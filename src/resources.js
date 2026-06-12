@@ -768,6 +768,182 @@ export function tradeSummery(){
     }
 }
 
+const resourceTooltipSpecifics = {
+    Money: 'resource_Money_desc',
+    Food: 'resource_Food_desc',
+    Authority: 'resource_Authority_desc',
+    Mana: 'resource_Mana_desc',
+    Energy: 'resource_Energy_desc',
+    Sus: 'resource_Sus_desc',
+    Knowledge: 'resource_Knowledge_desc',
+    Omniscience: 'resource_Omniscience_desc',
+    Zen: 'resource_Zen_desc',
+    Slave: 'resource_Slave_desc',
+    Soul_Gem: 'resource_Soul_Gem_desc',
+    Blood_Stone: 'resource_Blood_Stone_desc',
+    Artifact: 'resource_Artifact_desc',
+    Horseshoe: 'resource_Horseshoe_desc',
+    Useless: 'resource_Useless_desc',
+    Knockoff: 'resource_Knockoff_desc',
+    Infernite: 'resource_Infernite_desc',
+    Elerium: 'resource_Elerium_desc',
+    Nanite: 'resource_Nanite_desc',
+    Materials: 'resource_Materials_desc',
+    Cipher: 'resource_Cipher_desc',
+};
+
+const resourceTooltipGroups = {
+    material: new Set(['Lumber', 'Stone', 'Chrysotile', 'Crystal', 'Furs', 'Copper', 'Iron', 'Aluminium', 'Cement', 'Water', 'Plywood', 'Brick']),
+    industrial: new Set(['Coal', 'Oil', 'Uranium', 'Steel', 'Titanium', 'Alloy', 'Polymer', 'Iridium', 'Helium_3', 'Deuterium', 'Wrought_Iron', 'Sheet_Metal']),
+    exotic: new Set(['Neutronium', 'Adamantite', 'Nano_Tube', 'Graphene', 'Stanene', 'Bolognium', 'Vitreloy', 'Orichalcum', 'Asphodel_Powder', 'Elysanite', 'Unobtainium', 'Mythril', 'Aerogel', 'Nanoweave', 'Scarletite', 'Quantium']),
+    genetic: new Set(['RNA', 'DNA', 'Genes']),
+    storage: new Set(['Crates', 'Containers']),
+    infernal: new Set(['Corrupt_Gem', 'Codex', 'Demonic_Essence', 'Blessed_Essence']),
+};
+
+function resourceTooltipName(name){
+    return global.resource && global.resource[name] && global.resource[name].name ? global.resource[name].name : loc(`resource_${name}_name`);
+}
+
+function resourceTooltipContent(name){
+    let displayName = resourceTooltipName(name);
+    let desc = $(`<div></div>`);
+    switch (name){
+        case 'Plasmid':
+            {
+                let potential = global.race.p_mutation + (global.race['wish'] && global.race['wishStats'] ? global.race.wishStats.plas : 0);
+                let active = global.race['no_plasmid'] ? Math.min(potential, global.prestige.Plasmid.count) : global.prestige.Plasmid.count;
+                desc.append($(`<span>${loc(`resource_${name}_desc`,[active, +(plasmidBonus('plasmid') * 100).toFixed(2)])}</span>`));
+                if (global.genes['store'] && (global.race.universe !== 'antimatter' || global.genes['bleed'] >= 3)){
+                    let plasmidSpatial = spatialReasoning(1,'plasmid');
+                    if (plasmidSpatial > 1){
+                        desc.append($(`<span> ${loc(`resource_Plasmid_desc2`,[+((plasmidSpatial - 1) * 100).toFixed(2)])}</span>`));
+                    }
+                }
+            }
+            break;
+
+        case 'AntiPlasmid':
+            {
+                desc.append($(`<span>${loc(`resource_${name}_desc`,[global.prestige.AntiPlasmid.count, +(plasmidBonus('antiplasmid') * 100).toFixed(2)])}</span>`));
+                let antiSpatial = spatialReasoning(1,'anti');
+                if (global.genes['store'] && (global.race.universe === 'antimatter' || global.genes['bleed'] >= 3)){
+                    if (antiSpatial > 1){
+                        desc.append($(`<span> ${loc(`resource_Plasmid_desc2`,[+((antiSpatial - 1) * 100).toFixed(2)])}</span>`));
+                    }
+                }
+            }
+            break;
+
+        case 'Phage':
+            {
+                desc.append($(`<span>${loc(global.prestige.AntiPlasmid.count > 0 ? `resource_Phage_desc2` : `resource_Phage_desc`,[250 + global.prestige.Phage.count])}</span>`));
+                let phageSpatial = spatialReasoning(1,'phage');
+                if (global.genes['store'] && global.genes['store'] >= 4){
+                    if (phageSpatial > 1){
+                        desc.append($(`<span> ${loc(`resource_Plasmid_desc2`,[+((phageSpatial - 1) * 100).toFixed(2)])}</span>`));
+                    }
+                }
+            }
+            break;
+
+        case 'Dark':
+            {
+                switch (global.race.universe){
+                    case 'standard':
+                        desc.append($(`<span>${loc(`resource_${name}_desc_s`,[+((darkEffect('standard') - 1) * 100).toFixed(2)])}</span>`));
+                        break;
+
+                    case 'evil':
+                        desc.append($(`<span>${loc(`resource_${name}_desc_e`,[+((darkEffect('evil') - 1) * 100).toFixed(2),+((darkEffect('evil',true) - 1) * 100).toFixed(2)])}</span>`));
+                        break;
+
+                    case 'micro':
+                        desc.append($(`<span>${loc(`resource_${name}_desc_m`,[darkEffect('micro',false),darkEffect('micro',true)])}</span>`));
+                        break;
+
+                    case 'heavy':
+                        let hDE = darkEffect('heavy');
+                        let space = 0.25 + (0.5 * hDE);
+                        let int = 0.2 + (0.3 * hDE);
+                        desc.append($(`<span>${loc(`resource_${name}_desc_h`,[+(space * 100).toFixed(4),+(int * 100).toFixed(4)])}</span>`));
+                        break;
+
+                    case 'antimatter':
+                        desc.append($(`<span>${loc(`resource_${name}_desc_a`,[+((darkEffect('antimatter') - 1) * 100).toFixed(2)])}</span>`));
+                        break;
+
+                    case 'magic':
+                        desc.append($(`<span>${loc(`resource_${name}_desc_mg`,[loc('resource_Mana_name'),+((darkEffect('magic') - 1) * 100).toFixed(2)])}</span>`));
+                        break;
+                }
+            }
+            break;
+
+        case 'Harmony':
+            desc.append($(`<span>${loc(`resource_${name}_desc`,[global.race.universe === 'standard' ? 0.1 : 1, harmonyEffect()])}</span>`));
+            break;
+
+        case 'AICore':
+            {
+                let bonus = +((1 - (0.99 ** global.prestige.AICore.count)) * 100).toFixed(2);
+                desc.append($(`<span>${loc(`resource_${name}_desc`,[bonus])}</span>`));
+            }
+            break;
+
+        case 'Supercoiled':
+            {
+                let coiled = global.prestige.Supercoiled.count;
+                let bonus = (coiled / (coiled + 5000)) * 100;
+                desc.append($(`<span>${loc(`resource_${name}_desc`,[+bonus.toFixed(2)])}</span>`));
+                if (global.genes.hasOwnProperty('trader') && global.genes.trader >= 2){
+                    let trade = (coiled / (coiled + 500)) * 100;
+                    desc.append($(`<span> ${loc(`resource_${name}_trade_desc`,[+trade.toFixed(2)])}</span>`));
+                }
+            }
+            break;
+
+        default:
+            if (name === global.race.species){
+                desc.append($(`<span>${loc('resource_species_desc',[displayName])}</span>`));
+            }
+            else if (resourceTooltipSpecifics.hasOwnProperty(name)){
+                desc.append($(`<span>${loc(resourceTooltipSpecifics[name],[displayName])}</span>`));
+            }
+            else if (resourceTooltipGroups.material.has(name)){
+                desc.append($(`<span>${loc('resource_material_desc',[displayName])}</span>`));
+            }
+            else if (resourceTooltipGroups.industrial.has(name)){
+                desc.append($(`<span>${loc('resource_industrial_desc',[displayName])}</span>`));
+            }
+            else if (resourceTooltipGroups.exotic.has(name)){
+                desc.append($(`<span>${loc('resource_exotic_desc',[displayName])}</span>`));
+            }
+            else if (resourceTooltipGroups.genetic.has(name)){
+                desc.append($(`<span>${loc('resource_genetic_desc',[displayName])}</span>`));
+            }
+            else if (resourceTooltipGroups.storage.has(name)){
+                desc.append($(`<span>${loc('resource_storage_desc',[displayName])}</span>`));
+            }
+            else if (resourceTooltipGroups.infernal.has(name)){
+                desc.append($(`<span>${loc('resource_infernal_desc',[displayName])}</span>`));
+            }
+            else {
+                desc.append($(`<span>${loc('resource_exotic_desc',[displayName])}</span>`));
+            }
+            break;
+    }
+    return desc;
+}
+
+function attachResourceTooltip(name){
+    popover(`res${name}`, function(){
+        return resourceTooltipContent(name);
+    }, {
+        bind_mouse_enter: true
+    });
+}
+
 // Load resource function
 // This function defines each resource, loads saved values from localStorage
 // And it creates Vue binds for various resource values
@@ -958,6 +1134,8 @@ function loadResource(name,wiki,max,rate,tradable,stackable,color){
             }
         }
     });
+
+    attachResourceTooltip(name);
 
     breakdownPopover(`cnt${name}`,name,'c');
 
@@ -1250,110 +1428,7 @@ function loadSpecialResource(name,color) {
             round(n){ return n ? sizeApproximation(n, 3, false, true) : n; }
         }
     });
-
-    if (name === "Artifact" || name === "Blood_Stone"){
-        return;
-    }
-
-    popover(`res${name}`, function(){
-        let desc = $(`<div></div>`);
-        switch (name){
-            case 'Plasmid':
-                {
-                    let potential = global.race.p_mutation + (global.race['wish'] && global.race['wishStats'] ? global.race.wishStats.plas : 0);
-                    let active = global.race['no_plasmid'] ? Math.min(potential, global.prestige.Plasmid.count) : global.prestige.Plasmid.count;
-                    desc.append($(`<span>${loc(`resource_${name}_desc`,[active, +(plasmidBonus('plasmid') * 100).toFixed(2)])}</span>`));
-                    if (global.genes['store'] && (global.race.universe !== 'antimatter' || global.genes['bleed'] >= 3)){
-                        let plasmidSpatial = spatialReasoning(1,'plasmid');
-                        if (plasmidSpatial > 1){
-                            desc.append($(`<span> ${loc(`resource_Plasmid_desc2`,[+((plasmidSpatial - 1) * 100).toFixed(2)])}</span>`));
-                        }   
-                    }
-                }
-                break;
-    
-            case 'AntiPlasmid':
-                {
-                    desc.append($(`<span>${loc(`resource_${name}_desc`,[global.prestige.AntiPlasmid.count, +(plasmidBonus('antiplasmid') * 100).toFixed(2)])}</span>`));
-                    let antiSpatial = spatialReasoning(1,'anti');
-                    if (global.genes['store'] && (global.race.universe === 'antimatter' || global.genes['bleed'] >= 3)){
-                        if (antiSpatial > 1){
-                            desc.append($(`<span> ${loc(`resource_Plasmid_desc2`,[+((antiSpatial - 1) * 100).toFixed(2)])}</span>`));
-                        }
-                    }
-                }
-                break;
-    
-            case 'Phage':
-                {
-                    desc.append($(`<span>${loc(global.prestige.AntiPlasmid.count > 0 ? `resource_Phage_desc2` : `resource_Phage_desc`,[250 + global.prestige.Phage.count])}</span>`));
-                    let phageSpatial = spatialReasoning(1,'phage');
-                    if (global.genes['store'] && global.genes['store'] >= 4){
-                        if (phageSpatial > 1){
-                            desc.append($(`<span> ${loc(`resource_Plasmid_desc2`,[+((phageSpatial - 1) * 100).toFixed(2)])}</span>`));
-                        }
-                    }
-                }
-                break;
-    
-            case 'Dark':
-                {
-                    switch (global.race.universe){
-                        case 'standard':
-                            desc.append($(`<span>${loc(`resource_${name}_desc_s`,[+((darkEffect('standard') - 1) * 100).toFixed(2)])}</span>`));
-                            break;
-        
-                        case 'evil':
-                            desc.append($(`<span>${loc(`resource_${name}_desc_e`,[+((darkEffect('evil') - 1) * 100).toFixed(2),+((darkEffect('evil',true) - 1) * 100).toFixed(2)])}</span>`));
-                            break;
-        
-                        case 'micro':
-                            desc.append($(`<span>${loc(`resource_${name}_desc_m`,[darkEffect('micro',false),darkEffect('micro',true)])}</span>`));
-                            break;
-        
-                        case 'heavy':
-                            let hDE = darkEffect('heavy');
-                            let space = 0.25 + (0.5 * hDE);
-                            let int = 0.2 + (0.3 * hDE);
-                            desc.append($(`<span>${loc(`resource_${name}_desc_h`,[+(space * 100).toFixed(4),+(int * 100).toFixed(4)])}</span>`));
-                            break;
-        
-                        case 'antimatter':
-                            desc.append($(`<span>${loc(`resource_${name}_desc_a`,[+((darkEffect('antimatter') - 1) * 100).toFixed(2)])}</span>`));
-                            break;
-
-                        case 'magic':
-                            desc.append($(`<span>${loc(`resource_${name}_desc_mg`,[loc('resource_Mana_name'),+((darkEffect('magic') - 1) * 100).toFixed(2)])}</span>`));
-                            break;
-                    }
-                }
-                break;
-    
-            case 'Harmony':
-                desc.append($(`<span>${loc(`resource_${name}_desc`,[global.race.universe === 'standard' ? 0.1 : 1, harmonyEffect()])}</span>`));
-                break;
-
-            case 'AICore':
-                {
-                    let bonus = +((1 - (0.99 ** global.prestige.AICore.count)) * 100).toFixed(2);
-                    desc.append($(`<span>${loc(`resource_${name}_desc`,[bonus])}</span>`));
-                }
-                break;
-
-            case 'Supercoiled':
-                {
-                    let coiled = global.prestige.Supercoiled.count;
-                    let bonus = (coiled / (coiled + 5000)) * 100;
-                    desc.append($(`<span>${loc(`resource_${name}_desc`,[+bonus.toFixed(2)])}</span>`));
-                    if (global.genes.hasOwnProperty('trader') && global.genes.trader >= 2){
-                        let trade = (coiled / (coiled + 500)) * 100;
-                        desc.append($(`<span> ${loc(`resource_${name}_trade_desc`,[+trade.toFixed(2)])}</span>`));
-                    }
-                }
-                break;
-        }
-        return desc;
-    });
+    attachResourceTooltip(name);
 }
 
 function exportRouteEnabled(route){
