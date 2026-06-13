@@ -306,6 +306,11 @@ ${y}`)},projectName(){return typeof wt[a].title=="string"?wt[a].title:wt[a].titl
                 </button>
                 <b-dropdown-item v-on:click="setTheme('dark')">{{ 'theme_dark' | label }}</b-dropdown-item>
                 <b-dropdown-item v-on:click="setTheme('light')">{{ 'theme_light' | label }}</b-dropdown-item>
+                <b-dropdown-item v-on:click="setTheme('paperInk')">{{ 'theme_paperInk' | label }}</b-dropdown-item>
+                <b-dropdown-item v-on:click="setTheme('starfield')">{{ 'theme_starfield' | label }}</b-dropdown-item>
+                <b-dropdown-item v-on:click="setTheme('aurora')">{{ 'theme_aurora' | label }}</b-dropdown-item>
+                <b-dropdown-item v-on:click="setTheme('emberglass')">{{ 'theme_emberglass' | label }}</b-dropdown-item>
+                <b-dropdown-item v-on:click="setTheme('circuit')">{{ 'theme_circuit' | label }}</b-dropdown-item>
                 <b-dropdown-item v-on:click="setTheme('night')">{{ 'theme_night' | label }}</b-dropdown-item>
                 <b-dropdown-item v-on:click="setTheme('darkNight')">{{ 'theme_darkNight' | label }}</b-dropdown-item>
                 <b-dropdown-item v-on:click="setTheme('redgreen')">{{ 'theme_redgreen' | label }}</b-dropdown-item>
