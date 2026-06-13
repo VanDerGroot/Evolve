@@ -873,7 +873,36 @@ if (window.Worker){
         }
     }, false);
 }
-gameLoop('start');
+
+let hiddenLoopStop = false;
+document.addEventListener('visibilitychange', function(){
+    if (document.hidden){
+        if (!global.settings.pause){
+            const currentTimestamp = Date.now();
+            global.stats['current'] = currentTimestamp;
+            hiddenLoopStop = webWorker.s;
+            if (webWorker.s){
+                gameLoop('stop');
+            }
+            if (!global.race.hasOwnProperty('geck')){
+                save.setItem('evolved',LZString.compressToUTF16(JSON.stringify(global)));
+            }
+        }
+    }
+    else if (hiddenLoopStop){
+        hiddenLoopStop = false;
+        if (!global.settings.pause && !webWorker.s){
+            gameLoop('start');
+        }
+    }
+});
+
+if (document.hidden){
+    hiddenLoopStop = true;
+}
+else {
+    gameLoop('start');
+}
 
 resourceAlt();
 

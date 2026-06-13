@@ -124,7 +124,7 @@ export function gameLoop(act){
             break;
         case 'start':
             {
-                addATime(Date.now());
+                addATime(Date.now(),true);
 
                 const timers = loopTimers();
 
@@ -171,9 +171,9 @@ export function loopTimers(){
     };
 }
 
-// Adds accelerated time if enough time has passed since `global.stats.current`. Returns true if there was accelerated
-// time added. If the parameter is true, it will only add the time if a threshold of 120s has been reached.
-export function addATime(currentTimestamp){
+// Adds accelerated time if enough time has passed since `global.stats.current`.
+// `forceCurrentUpdate` refreshes the timestamp even when no accelerated time is earned.
+export function addATime(currentTimestamp,forceCurrentUpdate = false){
     // The second case is used for the initialization of atrack.t.
     if (exceededATimeThreshold(currentTimestamp) || global.stats.hasOwnProperty('current') && global.settings.at > 0){
         let timeDiff = currentTimestamp - global.stats.current;
@@ -195,6 +195,9 @@ export function addATime(currentTimestamp){
         }
         atrack.t = global.settings.at;
         // Updating the current date so that it won't be counted twice (e.g., when unpausing).
+        global.stats.current = currentTimestamp;
+    }
+    else if (forceCurrentUpdate || !global.stats.hasOwnProperty('current')){
         global.stats.current = currentTimestamp;
     }
 }
