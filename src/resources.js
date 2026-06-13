@@ -1039,6 +1039,9 @@ function resourcePurchasePreviewHtml(name, value, max, format){
     let current = preview ? value - preview : value;
     let currentText = format(current);
     if (!preview){
+        if (max >= 0){
+            return `${currentText} / ${format(max)}`;
+        }
         return currentText;
     }
     let spendText = format(-preview);
