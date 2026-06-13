@@ -3,7 +3,7 @@ import { loc } from './locale.js';
 import { timeCheck, timeFormat, vBind, popover, clearPopper, flib, clearElement, costMultiplier, darkEffect, genCivName, powerModifier, powerCostMod, calcPrestige, adjustCosts, modRes, messageQueue, buildQueue, format_emblem, shrineBonusActive, calc_mastery, calcPillar, calcGenomeScore, getShrineBonus, eventActive, easterEgg, getHalloween, trickOrTreat, deepClone, hoovedRename, get_qlevel } from './functions.js';
 import { unlockAchieve, challengeIcon, alevel, universeAffix, checkAdept } from './achieve.js';
 import { races, traits, genus_def, neg_roll_traits, randomMinorTrait, cleanAddTrait, combineTraits, biomes, planetTraits, setJType, altRace, setTraitRank, setImitation, shapeShift, basicRace, fathomCheck, traitCostMod, renderSupernatural, blubberFill, traitRank } from './races.js';
-import { defineResources, unlockCrates, unlockContainers, crateValue, containerValue, galacticTrade, spatialReasoning, resource_values, initResourceTabs, marketItem, containerItem, tradeSummery, faithBonus, templePlasmidBonus, faithTempleCount } from './resources.js';
+import { defineResources, unlockCrates, unlockContainers, crateValue, containerValue, galacticTrade, spatialReasoning, resource_values, initResourceTabs, marketItem, containerItem, tradeSummery, faithBonus, templePlasmidBonus, faithTempleCount, setResourcePurchasePreview, clearResourcePurchasePreview } from './resources.js';
 import { loadFoundry, defineJobs, jobScale, workerScale, job_desc } from './jobs.js';
 import { loadIndustry, defineIndustry, nf_resources, gridDefs, addSmelter, cancelRituals } from './industry.js';
 import { defineGovernment, defineGarrison, buildGarrison, commisionGarrison, foreignGov, armyRating, garrisonSize, govEffect } from './civics.js';
@@ -6208,6 +6208,7 @@ export function setAction(c_action,action,type,old,prediction){
     if (checkTechQualifications(c_action,type) === false) {
         return;
     }
+    let rawCosts = ['genes','blood'].includes(action);
     let tab = action;
     if (action === 'outerSol'){
         action = 'space';
@@ -6231,13 +6232,14 @@ export function setAction(c_action,action,type,old,prediction){
     }
 
     let parent = c_action['highlight'] && c_action.highlight() ? $(`<div id="${id}" class="action hl"${reqs}></div>`) : $(`<div id="${id}" class="action"${reqs}></div>`);
-    if (!checkAffordable(c_action,false,(['genes','blood'].includes(action)))){
+    if (!checkAffordable(c_action,false,rawCosts)){
         parent.addClass('cna');
     }
-    if (!checkAffordable(c_action,true,(['genes','blood'].includes(action)))){
+    if (!checkAffordable(c_action,true,rawCosts)){
         parent.addClass('cnam');
     }
     let element;
+    let costs = false;
     if (old){
         element = $('<span class="oldTech is-dark"><span class="aTitle">{{ title }}</span></span>');
     }
@@ -6245,7 +6247,7 @@ export function setAction(c_action,action,type,old,prediction){
         let cst = '';
         let data = '';
         if (c_action['cost']){
-            let costs = action !== 'genes' && action !== 'blood' ? adjustCosts(c_action) : c_action.cost;
+            costs = rawCosts ? c_action.cost : adjustCosts(c_action);
             Object.keys(costs).forEach(function (res){
                 let cost = costs[res]();
                 if (cost > 0){
@@ -6472,9 +6474,16 @@ export function setAction(c_action,action,type,old,prediction){
 
     popover(id,function(){ return undefined; },{
         in: function(obj){
+            if (!old && c_action['cost'] && checkAffordable(c_action,false,rawCosts)){
+                setResourcePurchasePreview(costs);
+            }
+            else {
+                clearResourcePurchasePreview();
+            }
             actionDesc(obj.popper,c_action,global[action][type],old,action,type);
         },
         out: function(){
+            clearResourcePurchasePreview();
             vBind({el: `#popTimer`},'destroy');
         },
         attach: action === 'starDock' ? 'body .modal' : '#main',

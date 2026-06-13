@@ -10,6 +10,8 @@ import { govEffect } from './civics.js';
 import { highPopAdjust, production, teamster } from './prod.js';
 import { loc } from './locale.js';
 
+let resourcePurchasePreview = false;
+
 export const resource_values = {
     Food: 5,
     Lumber: 5,
@@ -989,6 +991,89 @@ function attachResourceTooltip(name){
     });
 }
 
+function resourcePurchasePreviewTarget(res){
+    if (res === 'Species'){
+        return global.race.species;
+    }
+    if (res === 'Plasmid' && global.race.universe === 'antimatter'){
+        return 'AntiPlasmid';
+    }
+    if ((global.resource && global.resource.hasOwnProperty(res)) || global.prestige.hasOwnProperty(res)){
+        return res;
+    }
+    return false;
+}
+
+function resourcePurchasePreviewCosts(costs){
+    let preview = {};
+    if (!costs){
+        return preview;
+    }
+    Object.keys(costs).forEach(function(res){
+        if (['Custom', 'Structs', 'Bool', 'Morale', 'Army', 'HellArmy', 'Troops', 'Supply'].includes(res)){
+            return;
+        }
+        let cost = Number(costs[res]());
+        if (!cost || cost <= 0){
+            return;
+        }
+        let target = resourcePurchasePreviewTarget(res);
+        if (!target){
+            return;
+        }
+        preview[target] = (preview[target] || 0) + cost;
+    });
+    return preview;
+}
+
+function refreshResourcePurchasePreview(rows){
+    (Array.isArray(rows) ? rows : Object.keys(rows)).forEach(function(name){
+        if ($(`#res${name}`).length){
+            vBind({el: `#res${name}`}, 'update');
+        }
+    });
+}
+
+function resourcePurchasePreviewHtml(name, value, max, format){
+    let preview = resourcePurchasePreview && resourcePurchasePreview.hasOwnProperty(name) ? resourcePurchasePreview[name] : 0;
+    let current = preview ? value - preview : value;
+    let currentText = format(current);
+    if (!preview){
+        return currentText;
+    }
+    let spendText = format(-preview);
+    if (max >= 0){
+        return `<span class="resource-preview-current has-text-success">${currentText}</span> / <span class="resource-preview-max">${format(max)}</span> <span class="resource-preview-cost has-text-danger">(${spendText})</span>`;
+    }
+    return `<span class="resource-preview-current has-text-success">${currentText}</span> <span class="resource-preview-cost has-text-danger">(${spendText})</span>`;
+}
+
+export function setResourcePurchasePreview(costs){
+    let previousRows = resourcePurchasePreview ? Object.keys(resourcePurchasePreview) : [];
+    let preview = resourcePurchasePreviewCosts(costs);
+    let nextRows = Object.keys(preview);
+
+    if (nextRows.length === 0){
+        resourcePurchasePreview = false;
+        if (previousRows.length > 0){
+            refreshResourcePurchasePreview(previousRows);
+        }
+        return;
+    }
+
+    resourcePurchasePreview = preview;
+    refreshResourcePurchasePreview([...new Set([...previousRows, ...nextRows])]);
+}
+
+export function clearResourcePurchasePreview(){
+    if (!resourcePurchasePreview){
+        return;
+    }
+    let rows = Object.keys(resourcePurchasePreview);
+    resourcePurchasePreview = false;
+    refreshResourcePurchasePreview(rows);
+}
+
 // Load resource function
 // This function defines each resource, loads saved values from localStorage
 // And it creates Vue binds for various resource values
@@ -1054,10 +1139,10 @@ function loadResource(name,wiki,max,rate,tradable,stackable,color){
 
     var res_container;
     if (global.resource[name].max === -1 || global.resource[name].max === -2){
-        res_container = $(`<div id="res${name}" class="resource crafted" v-show="display"><div><h3 class="res has-text-${color}">{{ name | namespace }}</h3><span id="cnt${name}" class="count">{{ amount | diffSize }}</span></div></div>`);
+        res_container = $(`<div id="res${name}" class="resource crafted" v-show="display"><div><h3 class="res has-text-${color}">{{ name | namespace }}</h3><span id="cnt${name}" class="count" :class="{ previewed: hasPurchasePreview() }" v-html="countPreview()"></span></div></div>`);
     }
     else {
-        res_container = $(`<div id="res${name}" class="resource${global.settings.resBar[name] ? ` showBar` : ``}" v-show="display" :style="{ '--percent-full': (bar && max > 0 ? (amount/max)*100 : 0) + '%' }"><div><h3 class="res has-text-${color} bar" @click="toggle('${name}')">{{ name | namespace }}</h3><span id="cnt${name}" class="count">{{ amount | size }} / {{ max | size }}</span></div></div>`);
+        res_container = $(`<div id="res${name}" class="resource${global.settings.resBar[name] ? ` showBar` : ``}" v-show="display" :style="{ '--percent-full': (bar && max > 0 ? (amount/max)*100 : 0) + '%' }"><div><h3 class="res has-text-${color} bar" @click="toggle('${name}')">{{ name | namespace }}</h3><span id="cnt${name}" class="count" :class="{ previewed: hasPurchasePreview() }" v-html="countPreview()"></span></div></div>`);
     }
 
     if (stackable){
@@ -1116,6 +1201,13 @@ function loadResource(name,wiki,max,rate,tradable,stackable,color){
             resRate(n){
                 let diff = sizeApproximation(global.resource[n].diff,2);
                 return `${global.resource[name].name} ${diff} per second`;
+            },
+            hasPurchasePreview(){
+                return !!resourcePurchasePreview && resourcePurchasePreview.hasOwnProperty(name);
+            },
+            countPreview(){
+                let format = this.max >= 0 ? this.$options.filters.size : this.$options.filters.diffSize;
+                return resourcePurchasePreviewHtml(name, this.amount, this.max, format);
             },
             trigModal(){
                 this.$buefy.modal.open({
@@ -1463,7 +1555,7 @@ function loadSpecialResource(name,color) {
     }
     color = color || 'special';
 
-    var res_container = $(`<div id="res${name}" class="resource" v-show="count"><div><span class="res has-text-${color}">${loc(`resource_${name}_name`)}</span><span class="count">{{ count | round }}</span></div></div>`);
+    var res_container = $(`<div id="res${name}" class="resource" v-show="count"><div><span class="res has-text-${color}">${loc(`resource_${name}_name`)}</span><span class="count" :class="{ previewed: hasPurchasePreview() }" v-html="countPreview()"></span></div></div>`);
     $('#resources').append(res_container);
 
     vBind({
@@ -1471,6 +1563,14 @@ function loadSpecialResource(name,color) {
         data: global.prestige[name],
         filters: {
             round(n){ return n ? sizeApproximation(n, 3, false, true) : n; }
+        },
+        methods: {
+            hasPurchasePreview(){
+                return !!resourcePurchasePreview && resourcePurchasePreview.hasOwnProperty(name);
+            },
+            countPreview(){
+                return resourcePurchasePreviewHtml(name, this.count, -1, this.$options.filters.round);
+            }
         }
     });
     attachResourceTooltip(name);
