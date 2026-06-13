@@ -1,4 +1,4 @@
-import { global, save, message_logs, message_filters, webWorker, keyMultiplier, intervals, resizeGame, atrack, p_on, quantum_level, tmp_vars } from './vars.js';
+import { global, save, message_logs, message_filters, webWorker, keyMultiplier, intervals, resizeGame, p_on, quantum_level, tmp_vars } from './vars.js';
 import { loc } from './locale.js';
 import { races, traits, genus_def, traitSkin, fathomCheck } from './races.js';
 import { actions, actionDesc } from './actions.js';
@@ -116,15 +116,12 @@ export function gameLoop(act){
                 if (webWorker.w){
                     webWorker.w.postMessage({ loop: 'clear' });
                 }
-                if (global.settings.at > 0){
-                    global.settings.at = atrack.t;
-                }
                 webWorker.s = false;
             }
             break;
         case 'start':
             {
-                addATime(Date.now(),true);
+                queueOfflineProgress(Date.now(),true);
 
                 const timers = loopTimers();
 
@@ -158,60 +155,100 @@ export function loopTimers(){
     const baseMidTimer = webWorker.midRatio * webWorkerMainTimer;
     // Long loop (game day) takes 5000ms without any modifiers.
     const baseLongTimer = webWorker.longRatio * webWorkerMainTimer;
-    // The constant by which the time is accelerated when atrack.t > 0.
-    const timeAccelerationFactor = 2;
-
-    const aTimeMultiplier = atrack.t > 0 ? 1 / timeAccelerationFactor : 1;
     return {
         webWorkerMainTimer,
-        mainTimer: Math.ceil(webWorkerMainTimer * aTimeMultiplier),
-        longTimer: Math.ceil(baseLongTimer * aTimeMultiplier),
+        mainTimer: webWorkerMainTimer,
+        longTimer: baseLongTimer,
         baseLongTimer,
-        timeAccelerationFactor,
     };
 }
 
-// Adds accelerated time if enough time has passed since `global.stats.current`.
-// `forceCurrentUpdate` refreshes the timestamp even when no accelerated time is earned.
-export function addATime(currentTimestamp,forceCurrentUpdate = false){
-    // The second case is used for the initialization of atrack.t.
-    if (exceededATimeThreshold(currentTimestamp) || global.stats.hasOwnProperty('current') && global.settings.at > 0){
-        let timeDiff = currentTimestamp - global.stats.current;
-        // Removing any accelerated time if the value is larger than the cap.
-        if (global.settings.at > 11520){
-            global.settings.at = 0;
-        }
-        // Accelerated time is added only if it is over the threshold.
-        if (timeDiff >= 120000){
-            const timers = loopTimers();
-            const gameDayDuration = timers.baseLongTimer;
-            // The number of days during which the time is accelerated (at) should take as long as 2 / 3 of paused time.
-            // at * gameDayDuration / timeAccelerationFactor = 2 / 3 * timeDiff
-            global.settings.at += Math.floor(2 / 3 * timeDiff * timers.timeAccelerationFactor / gameDayDuration);
-        }
-        // Accelerated time is capped at 8*60*60/2.5 game days.
-        if (global.settings.at > 11520){
-            global.settings.at = 11520;
-        }
-        atrack.t = global.settings.at;
-        // Updating the current date so that it won't be counted twice (e.g., when unpausing).
-        global.stats.current = currentTimestamp;
+export const offlineProgressConfig = {
+    threshold: 2 * 60 * 1000,
+    cap: 24 * 60 * 60 * 1000
+};
+
+function offlineProgressState(){
+    if (!global.stats.hasOwnProperty('offlineProgress') || typeof global.stats.offlineProgress !== 'object' || global.stats.offlineProgress === null){
+        global.stats.offlineProgress = {};
     }
-    else if (forceCurrentUpdate || !global.stats.hasOwnProperty('current')){
-        global.stats.current = currentTimestamp;
+    let state = global.stats.offlineProgress;
+    state.remaining = Number.isFinite(state.remaining) && state.remaining > 0 ? Math.floor(state.remaining) : 0;
+    state.period = Number.isFinite(state.period) && state.period > 0 ? state.period : loopTimers().webWorkerMainTimer;
+    state.cap = Number.isFinite(state.cap) && state.cap > 0 ? state.cap : offlineProgressConfig.cap;
+    syncOfflineProgressDisplay(state);
+    return state;
+}
+
+function syncOfflineProgressDisplay(state = global.stats.offlineProgress){
+    if (state && state.remaining > 0){
+        global.settings.at = Math.ceil(state.remaining / webWorker.longRatio);
+    }
+    else {
+        global.settings.at = 0;
     }
 }
 
-// Takes the current Date.now, returns whether the minimum threshold to count accelerated time has passed.
-export function exceededATimeThreshold(currentTimestamp){
-    return global.stats.hasOwnProperty('current') && currentTimestamp - global.stats.current >= 120000;
+// Queues offline progress for replay using the same loop sequence as online play.
+// `forceCurrentUpdate` refreshes the timestamp even when no progress is queued.
+export function queueOfflineProgress(currentTimestamp,forceCurrentUpdate = false){
+    let state = offlineProgressState();
+    if (!global.stats.hasOwnProperty('current')){
+        global.stats.current = currentTimestamp;
+        syncOfflineProgressDisplay(state);
+        return 0;
+    }
+
+    const timeDiff = currentTimestamp - global.stats.current;
+    if (timeDiff >= offlineProgressConfig.threshold){
+        const timers = loopTimers();
+        const replayPeriod = timers.webWorkerMainTimer;
+        const replayTime = Math.min(timeDiff, offlineProgressConfig.cap);
+        const replayPeriods = Math.floor(replayTime / replayPeriod);
+
+        if (replayPeriods > 0){
+            if (state.remaining > 0 && state.period !== replayPeriod){
+                state.remaining = Math.floor((state.remaining * state.period) / replayPeriod);
+            }
+            state.remaining += replayPeriods;
+            state.period = replayPeriod;
+            state.cap = offlineProgressConfig.cap;
+        }
+
+        global.stats.current = currentTimestamp;
+        syncOfflineProgressDisplay(state);
+        return replayPeriods;
+    }
+    else if (forceCurrentUpdate || timeDiff < 0){
+        global.stats.current = currentTimestamp;
+    }
+
+    syncOfflineProgressDisplay(state);
+    return 0;
+}
+
+// Takes the current Date.now, returns whether the minimum threshold to replay offline progress has passed.
+export function exceededOfflineProgressThreshold(currentTimestamp){
+    return global.stats.hasOwnProperty('current') && currentTimestamp - global.stats.current >= offlineProgressConfig.threshold;
+}
+
+export function takeOfflineProgressPeriods(maxPeriods){
+    let state = offlineProgressState();
+    if (state.remaining <= 0){
+        return 0;
+    }
+
+    const periods = Math.min(maxPeriods,state.remaining);
+    state.remaining -= periods;
+    syncOfflineProgressDisplay(state);
+    return periods;
 }
 
 window.exportGame = function exportGame(){
     if (global.race['noexport']){
         return `Export is not available during ${global.race['noexport']} Creation`;
     }
-    addATime(Date.now());
+    queueOfflineProgress(Date.now(),true);
     return LZString.compressToBase64(JSON.stringify(global));
 }
 

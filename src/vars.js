@@ -18,7 +18,12 @@ export var global = {
     stats: {
         start: Date.now(),
         days: 0,
-        tdays: 0
+        tdays: 0,
+        offlineProgress: {
+            remaining: 0,
+            period: 0,
+            cap: 24 * 60 * 60 * 1000
+        }
     },
     event: {
         t: 200,
@@ -1493,6 +1498,24 @@ if (!global.settings['locale']){
 if (typeof global.settings.pause === 'undefined'){
     global.settings['pause'] = false;
 }
+if (!global.stats.hasOwnProperty('offlineProgress') || typeof global.stats.offlineProgress !== 'object' || global.stats.offlineProgress === null){
+    global.stats['offlineProgress'] = {
+        remaining: 0,
+        period: 0,
+        cap: 24 * 60 * 60 * 1000
+    };
+}
+else {
+    global.stats.offlineProgress.remaining = Number.isFinite(global.stats.offlineProgress.remaining) && global.stats.offlineProgress.remaining > 0 ? Math.floor(global.stats.offlineProgress.remaining) : 0;
+    global.stats.offlineProgress.period = Number.isFinite(global.stats.offlineProgress.period) && global.stats.offlineProgress.period > 0 ? global.stats.offlineProgress.period : 0;
+    global.stats.offlineProgress.cap = Number.isFinite(global.stats.offlineProgress.cap) && global.stats.offlineProgress.cap > 0 ? global.stats.offlineProgress.cap : 24 * 60 * 60 * 1000;
+}
+if (global.stats.offlineProgress.remaining <= 0){
+    global.settings.at = 0;
+}
+else {
+    global.settings.at = Math.ceil(global.stats.offlineProgress.remaining / 20);
+}
 if (typeof global.settings.mKeys === 'undefined'){
     global.settings['mKeys'] = true;
 }
@@ -2409,6 +2432,11 @@ export function clearStates(){
     global.stats.murders = 0;
     global.stats.uDead = 0;
     global.settings.at = 0;
+    global.stats.offlineProgress = {
+        remaining: 0,
+        period: 0,
+        cap: 24 * 60 * 60 * 1000
+    };
 
     global.settings.showEvolve = true;
     global.settings.space.home = true;

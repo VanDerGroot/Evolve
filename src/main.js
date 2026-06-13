@@ -1,7 +1,7 @@
-import { global, save, seededRandom, webWorker, intervals, keyMap, atrack, resizeGame, breakdown, sizeApproximation, keyMultiplier, power_generated, p_on, support_on, int_on, gal_on, spire_on, set_qlevel, quantum_level, callback_queue, active_rituals } from './vars.js';
+import { global, save, seededRandom, webWorker, intervals, keyMap, resizeGame, breakdown, sizeApproximation, keyMultiplier, power_generated, p_on, support_on, int_on, gal_on, spire_on, set_qlevel, quantum_level, callback_queue, active_rituals } from './vars.js';
 import { loc } from './locale.js';
 import { unlockAchieve, checkAchievements, drawAchieve, alevel, universeAffix, challengeIcon, unlockFeat, checkAdept } from './achieve.js';
-import { gameLoop, vBind, popover, clearPopper, flib, timeCheck, arpaTimeCheck, timeFormat, powerModifier, resetResBuffer, modRes, initMessageQueue, messageQueue, calc_mastery, calcPillar, darkEffect, calcQueueMax, calcRQueueMax, buildQueue, shrineBonusActive, getShrineBonus, eventActive, easterEggBind, trickOrTreatBind, powerGrid, deepClone, addATime, exceededATimeThreshold, loopTimers, calcQuantumLevel, drawPet } from './functions.js';
+import { gameLoop, vBind, popover, clearPopper, flib, timeCheck, arpaTimeCheck, timeFormat, powerModifier, resetResBuffer, modRes, initMessageQueue, messageQueue, calc_mastery, calcPillar, darkEffect, calcQueueMax, calcRQueueMax, buildQueue, shrineBonusActive, getShrineBonus, eventActive, easterEggBind, trickOrTreatBind, powerGrid, deepClone, queueOfflineProgress, exceededOfflineProgressThreshold, takeOfflineProgressPeriods, loopTimers, calcQuantumLevel, drawPet } from './functions.js';
 import { races, traits, racialTrait, orbitLength, servantTrait, randomMinorTrait, biomes, planetTraits, shapeShift, fathomCheck, blubberFill, cleanRemoveTrait } from './races.js';
 import { defineResources, resource_values, spatialReasoning, craftCost, plasmidBonus, faithBonus, faithTempleCount, tradeRatio, craftingRatio, crateValue, containerValue, tradeSellPrice, tradeBuyPrice, atomic_mass, supplyValue, galaxyOffers } from './resources.js';
 import { defineJobs, job_desc, loadFoundry, farmerValue, jobName, jobScale, workerScale, limitCraftsmen, loadServants} from './jobs.js';
@@ -564,7 +564,7 @@ vBind({
             return global['sim'] ? true : false;
         },
         atRemain(){
-            return loc(`accelerated_time`);
+            return loc(`offline_progress`);
         },
         pause(){
             $(`#pausegame`).removeClass('play');
@@ -838,14 +838,14 @@ set_qlevel(calcQuantumLevel(true));
 $('#lbl_city').html('Village');
 
 var loopTick = 0; // Used to synchronize the fast, mid, and long loops to each other
-export function execGameLoops(periods = 1){
-    // Currently there is no smart catch-up mechanism
-    // Limit to 1 minute (12 game days) of simulation per call
-    const maxCatchUp = webWorker.longRatio * 12;
-    periods = Math.min(periods, maxCatchUp); 
-
+function runGameLoopPeriods(periods,replayOffline = false){
+    let completed = 0;
     while (webWorker.s && periods--){
+        if (replayOffline && takeOfflineProgressPeriods(1) <= 0){
+            break;
+        }
         ++loopTick;
+        completed++;
         const doMid = (loopTick % webWorker.midRatio) === 0;
         const doLong = (loopTick % webWorker.longRatio) === 0;
 
@@ -860,6 +860,21 @@ export function execGameLoops(periods = 1){
         // Overflow prevention
         if (doMid && doLong){ loopTick = 0; }
     }
+    return completed;
+}
+
+export function execGameLoops(periods = 1){
+    // Limit each catch-up/replay chunk to 1 minute (12 game days) of simulation per call.
+    const maxCatchUp = webWorker.longRatio * 12;
+    if (global.stats.offlineProgress && global.stats.offlineProgress.remaining > 0){
+        const offlinePeriods = runGameLoopPeriods(maxCatchUp,true);
+        if (offlinePeriods > 0 && !global.race.hasOwnProperty('geck')){
+            save.setItem('evolved',LZString.compressToUTF16(JSON.stringify(global)));
+        }
+        return;
+    }
+
+    runGameLoopPeriods(Math.min(periods, maxCatchUp));
 }
 
 if (window.Worker){
@@ -877,16 +892,14 @@ if (window.Worker){
 let hiddenLoopStop = false;
 document.addEventListener('visibilitychange', function(){
     if (document.hidden){
-        if (!global.settings.pause){
-            const currentTimestamp = Date.now();
-            global.stats['current'] = currentTimestamp;
-            hiddenLoopStop = webWorker.s;
-            if (webWorker.s){
-                gameLoop('stop');
-            }
-            if (!global.race.hasOwnProperty('geck')){
-                save.setItem('evolved',LZString.compressToUTF16(JSON.stringify(global)));
-            }
+        const currentTimestamp = Date.now();
+        queueOfflineProgress(currentTimestamp,true);
+        hiddenLoopStop = webWorker.s;
+        if (webWorker.s){
+            gameLoop('stop');
+        }
+        if (!global.race.hasOwnProperty('geck')){
+            save.setItem('evolved',LZString.compressToUTF16(JSON.stringify(global)));
         }
     }
     else if (hiddenLoopStop){
@@ -12838,13 +12851,9 @@ function longLoop(){
 
     const currentTimestamp = date.valueOf();
     // Checking if a substantial amount of time elapsed since last longLoop, indicating system suspension,
-    // hibernation or something similar (the threshold is the same as for counting accelerated time during pause).
-    let restartNeeded = false;
-    if (!global.settings.pause && exceededATimeThreshold(currentTimestamp)){
-        // Adding accelerated time based on last current time which is updated below.
-        addATime(currentTimestamp);
-        // The restart is needed to update the duration of the loop interval.
-        restartNeeded = true;
+    // hibernation or something similar.
+    if (exceededOfflineProgressThreshold(currentTimestamp)){
+        queueOfflineProgress(currentTimestamp);
     }
 
     // Save game state
@@ -12864,20 +12873,6 @@ function longLoop(){
 
     if (global.settings.pause && webWorker.s){
         gameLoop('stop');
-    }
-
-    if (atrack.t > 0){
-        atrack.t--;
-        global.settings.at--;
-        if (global.settings.at <= 0 || atrack.t <= 0){
-            global.settings.at = 0;
-            restartNeeded = true;
-        }
-    }
-
-    if (restartNeeded){
-        gameLoop('stop');
-        gameLoop('start');
     }
 }
 
