@@ -171,7 +171,7 @@ ${y}`)},projectName(){return typeof wt[a].title=="string"?wt[a].title:wt[a].titl
                             {{ 'tab_perks' | label }}
                         </template>
                     </b-tab-item>
-                </b-tabs>`),U({el:"#mTabStats",data:{s:e.settings},filters:{label(a){return ls(a)}}}),Tl();break;case 7:e.settings.tabLoad;break;case"mTabObserve":default:e.settings.tabLoad,e.portal.observe&&un(!0);break}$("#popper").length>0&&$(`#${$("#popper").data("id")}`).length===0&&Ke()}function zl(){de($("body")),$("html").addClass(e.settings.font),$("body").append(`<div id="topBar" class="topBar">
+                </b-tabs>`),U({el:"#mTabStats",data:{s:e.settings},filters:{label(a){return ls(a)}}}),Tl();break;case 7:e.settings.tabLoad;break;case"mTabObserve":default:e.settings.tabLoad,e.portal.observe&&un(!0);break}$("#popper").length>0&&$(`#${$("#popper").data("id")}`).length===0&&Ke()}function zl(){de($("body")),$("body").addClass("evolve-app"),$("html").addClass(e.settings.font),$("body").append(`<div id="topBar" class="topBar">
         <h2 class="is-sr-only">Top Bar</h2>
         <span class="planetWrap">
             <span class="planet">{{ race.species | planet }}</span>

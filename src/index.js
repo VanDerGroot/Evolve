@@ -883,6 +883,7 @@ export function loadTab(tab){
 export function index(){
     clearElement($('body'));
 
+    $('body').addClass('evolve-app');
     $('html').addClass(global.settings.font);
 
     // Top Bar
