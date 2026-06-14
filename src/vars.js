@@ -22,7 +22,13 @@ export var global = {
         offlineProgress: {
             remaining: 0,
             period: 0,
-            cap: 24 * 60 * 60 * 1000
+            cap: 24 * 60 * 60 * 1000,
+            total: 0,
+            start: 0,
+            end: 0,
+            queued: 0,
+            capped: false,
+            gameStart: false
         }
     },
     event: {
@@ -1502,13 +1508,44 @@ if (!global.stats.hasOwnProperty('offlineProgress') || typeof global.stats.offli
     global.stats['offlineProgress'] = {
         remaining: 0,
         period: 0,
-        cap: 24 * 60 * 60 * 1000
+        cap: 24 * 60 * 60 * 1000,
+        total: 0,
+        start: 0,
+        end: 0,
+        queued: 0,
+        capped: false,
+        gameStart: false
     };
 }
 else {
     global.stats.offlineProgress.remaining = Number.isFinite(global.stats.offlineProgress.remaining) && global.stats.offlineProgress.remaining > 0 ? Math.floor(global.stats.offlineProgress.remaining) : 0;
     global.stats.offlineProgress.period = Number.isFinite(global.stats.offlineProgress.period) && global.stats.offlineProgress.period > 0 ? global.stats.offlineProgress.period : 0;
     global.stats.offlineProgress.cap = Number.isFinite(global.stats.offlineProgress.cap) && global.stats.offlineProgress.cap > 0 ? global.stats.offlineProgress.cap : 24 * 60 * 60 * 1000;
+    global.stats.offlineProgress.total = Number.isFinite(global.stats.offlineProgress.total) && global.stats.offlineProgress.total >= global.stats.offlineProgress.remaining ? Math.floor(global.stats.offlineProgress.total) : global.stats.offlineProgress.remaining;
+    global.stats.offlineProgress.start = Number.isFinite(global.stats.offlineProgress.start) && global.stats.offlineProgress.start > 0 ? global.stats.offlineProgress.start : 0;
+    global.stats.offlineProgress.end = Number.isFinite(global.stats.offlineProgress.end) && global.stats.offlineProgress.end > 0 ? global.stats.offlineProgress.end : 0;
+    global.stats.offlineProgress.queued = Number.isFinite(global.stats.offlineProgress.queued) && global.stats.offlineProgress.queued > 0 ? global.stats.offlineProgress.queued : 0;
+    global.stats.offlineProgress.capped = global.stats.offlineProgress.capped ? true : false;
+    if (
+        !global.stats.offlineProgress.gameStart ||
+        typeof global.stats.offlineProgress.gameStart !== 'object' ||
+        !Number.isFinite(global.stats.offlineProgress.gameStart.year) ||
+        !Number.isFinite(global.stats.offlineProgress.gameStart.day)
+    ){
+        global.stats.offlineProgress.gameStart = false;
+    }
+    else {
+        global.stats.offlineProgress.gameStart.year = Math.floor(global.stats.offlineProgress.gameStart.year);
+        global.stats.offlineProgress.gameStart.day = Math.floor(global.stats.offlineProgress.gameStart.day);
+    }
+}
+if (global.stats.offlineProgress.remaining <= 0){
+    global.stats.offlineProgress.total = 0;
+    global.stats.offlineProgress.start = 0;
+    global.stats.offlineProgress.end = 0;
+    global.stats.offlineProgress.queued = 0;
+    global.stats.offlineProgress.capped = false;
+    global.stats.offlineProgress.gameStart = false;
 }
 if (global.stats.offlineProgress.remaining <= 0){
     global.settings.at = 0;
@@ -2435,7 +2472,13 @@ export function clearStates(){
     global.stats.offlineProgress = {
         remaining: 0,
         period: 0,
-        cap: 24 * 60 * 60 * 1000
+        cap: 24 * 60 * 60 * 1000,
+        total: 0,
+        start: 0,
+        end: 0,
+        queued: 0,
+        capped: false,
+        gameStart: false
     };
 
     global.settings.showEvolve = true;

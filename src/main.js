@@ -1,7 +1,7 @@
 import { global, save, seededRandom, webWorker, intervals, keyMap, resizeGame, breakdown, sizeApproximation, keyMultiplier, power_generated, p_on, support_on, int_on, gal_on, spire_on, set_qlevel, quantum_level, callback_queue, active_rituals } from './vars.js';
 import { loc } from './locale.js';
 import { unlockAchieve, checkAchievements, drawAchieve, alevel, universeAffix, challengeIcon, unlockFeat, checkAdept } from './achieve.js';
-import { gameLoop, vBind, popover, clearPopper, flib, timeCheck, arpaTimeCheck, timeFormat, powerModifier, resetResBuffer, modRes, initMessageQueue, messageQueue, calc_mastery, calcPillar, darkEffect, calcQueueMax, calcRQueueMax, buildQueue, shrineBonusActive, getShrineBonus, eventActive, easterEggBind, trickOrTreatBind, powerGrid, deepClone, queueOfflineProgress, exceededOfflineProgressThreshold, takeOfflineProgressPeriods, loopTimers, calcQuantumLevel, drawPet } from './functions.js';
+import { gameLoop, vBind, popover, clearPopper, flib, timeCheck, arpaTimeCheck, timeFormat, powerModifier, resetResBuffer, modRes, initMessageQueue, messageQueue, calc_mastery, calcPillar, darkEffect, calcQueueMax, calcRQueueMax, buildQueue, shrineBonusActive, getShrineBonus, eventActive, easterEggBind, trickOrTreatBind, powerGrid, deepClone, queueOfflineProgress, exceededOfflineProgressThreshold, takeOfflineProgressPeriods, abortOfflineProgress, loopTimers, calcQuantumLevel, drawPet } from './functions.js';
 import { races, traits, racialTrait, orbitLength, servantTrait, randomMinorTrait, biomes, planetTraits, shapeShift, fathomCheck, blubberFill, cleanRemoveTrait } from './races.js';
 import { defineResources, resource_values, spatialReasoning, craftCost, plasmidBonus, faithBonus, faithTempleCount, tradeRatio, craftingRatio, crateValue, containerValue, tradeSellPrice, tradeBuyPrice, atomic_mass, supplyValue, galaxyOffers } from './resources.js';
 import { defineJobs, job_desc, loadFoundry, farmerValue, jobName, jobScale, workerScale, limitCraftsmen, loadServants} from './jobs.js';
@@ -863,14 +863,187 @@ function runGameLoopPeriods(periods,replayOffline = false){
     return completed;
 }
 
+let offlineProgressModal = false;
+
+function offlineProgressParent(){
+    let topBar = $('#topBar');
+    return topBar.length > 0 && topBar[0].__vue__ ? topBar[0].__vue__ : false;
+}
+
+function closeOfflineProgressModal(){
+    if (offlineProgressModal){
+        try {
+            if (typeof offlineProgressModal.close === 'function'){
+                offlineProgressModal.close();
+            }
+        }
+        catch(e){}
+    }
+    offlineProgressModal = false;
+}
+
+function showOfflineProgressModal(){
+    const state = global.stats.offlineProgress;
+    if (!state || state.remaining <= 0 || state.total <= 0 || offlineProgressModal){
+        return;
+    }
+
+    const parent = offlineProgressParent();
+    if (!parent || !parent.$buefy){
+        return;
+    }
+
+    let modal = {
+        template: `<div id="offlineProgressModal" class="modalBox offlineProgressModal">
+            <p id="offlineProgressModalTitle" class="has-text-warning modalTitle">{{ label('offline_progress_modal_title') }}</p>
+            <div class="offlineProgressBody">
+                <div class="offlineProgressRows">
+                    <div class="offlineProgressRow">
+                        <span class="has-text-warning">{{ label('offline_progress_modal_real_start') }}</span>
+                        <span>{{ realDate(state.start) }}</span>
+                    </div>
+                    <div class="offlineProgressRow">
+                        <span class="has-text-warning">{{ label('offline_progress_modal_real_end') }}</span>
+                        <span>{{ realDate(state.end) }}</span>
+                    </div>
+                    <div class="offlineProgressRow">
+                        <span class="has-text-warning">{{ label('offline_progress_modal_game_start') }}</span>
+                        <span>{{ gameDate(state.gameStart) }}</span>
+                    </div>
+                    <div class="offlineProgressRow">
+                        <span class="has-text-warning">{{ label('offline_progress_modal_game_current') }}</span>
+                        <span>{{ gameDate(city.calendar) }}</span>
+                    </div>
+                </div>
+                <div class="offlineProgressBar">
+                    <progress class="progress" :value="progressValue()" max="100">{{ progressLabel() }}%</progress>
+                    <div class="offlineProgressPercent has-text-caution">{{ progressLabel() }}%</div>
+                </div>
+                <div class="offlineProgressRows">
+                    <div class="offlineProgressRow">
+                        <span class="has-text-warning">{{ label('offline_progress_modal_replayed') }}</span>
+                        <span>{{ replayedTime() }}</span>
+                    </div>
+                    <div class="offlineProgressRow">
+                        <span class="has-text-warning">{{ label('offline_progress_modal_remaining') }}</span>
+                        <span>{{ remainingTime() }}</span>
+                    </div>
+                </div>
+                <p class="offlineProgressCap has-text-caution" v-show="state.capped">{{ cappedLabel() }}</p>
+                <div class="offlineProgressActions">
+                    <button class="button has-text-danger" @click="abort">{{ label('offline_progress_modal_abort') }}</button>
+                </div>
+            </div>
+        </div>`,
+        data(){
+            return {
+                state: global.stats.offlineProgress,
+                city: global.city
+            };
+        },
+        methods: {
+            label(key,args){
+                return loc(key,args);
+            },
+            realDate(timestamp){
+                if (!Number.isFinite(timestamp) || timestamp <= 0){
+                    return loc('offline_progress_modal_unknown');
+                }
+                let date = new Date(timestamp);
+                try {
+                    return date.toLocaleString(global.settings.locale || undefined);
+                }
+                catch(e){
+                    return date.toLocaleString();
+                }
+            },
+            gameDate(date){
+                if (!date || typeof date !== 'object' || !Number.isFinite(date.year) || !Number.isFinite(date.day)){
+                    return loc('offline_progress_modal_unknown');
+                }
+                return `${loc('year')} ${date.year}, ${loc('day')} ${date.day}`;
+            },
+            period(){
+                return this.state.period || loopTimers().webWorkerMainTimer;
+            },
+            duration(periods){
+                return timeFormat((periods * this.period()) / 1000);
+            },
+            progressValue(){
+                if (!this.state.total || this.state.total <= 0){
+                    return 100;
+                }
+                return Math.min(100,Math.max(0,((this.state.total - this.state.remaining) / this.state.total) * 100));
+            },
+            progressLabel(){
+                let value = this.progressValue();
+                if (value >= 99.95){
+                    return '100';
+                }
+                return value.toFixed(1);
+            },
+            replayedTime(){
+                return this.duration(Math.max(0,this.state.total - this.state.remaining));
+            },
+            remainingTime(){
+                return this.duration(Math.max(0,this.state.remaining));
+            },
+            cappedLabel(){
+                return loc('offline_progress_modal_capped',[timeFormat(this.state.cap / 1000)]);
+            },
+            abort(){
+                this.$buefy.dialog.confirm({
+                    title: loc('offline_progress_modal_abort_title'),
+                    message: loc('offline_progress_modal_abort_message'),
+                    ariaModal: true,
+                    confirmText: loc('offline_progress_modal_abort_confirm'),
+                    cancelText: loc('offline_progress_modal_abort_cancel'),
+                    type: 'is-danger',
+                    onConfirm: () => {
+                        abortOfflineProgress();
+                        if (!global.race.hasOwnProperty('geck')){
+                            save.setItem('evolved',LZString.compressToUTF16(JSON.stringify(global)));
+                        }
+                        closeOfflineProgressModal();
+                    }
+                });
+            }
+        }
+    };
+
+    offlineProgressModal = parent.$buefy.modal.open({
+        parent: parent,
+        component: modal,
+        canCancel: false,
+        trapFocus: true,
+        ariaModal: true
+    });
+}
+
+function syncOfflineProgressModal(){
+    const state = global.stats.offlineProgress;
+    if (state && state.remaining > 0 && state.total > 0){
+        showOfflineProgressModal();
+        let modal = $('#offlineProgressModal');
+        if (modal.length > 0 && modal[0].__vue__){
+            modal[0].__vue__.$forceUpdate();
+        }
+    }
+    else {
+        closeOfflineProgressModal();
+    }
+}
+
 export function execGameLoops(periods = 1){
     // Limit each catch-up/replay chunk to 1 minute (12 game days) of simulation per call.
     const maxCatchUp = webWorker.longRatio * 12;
+    syncOfflineProgressModal();
     if (global.stats.offlineProgress && global.stats.offlineProgress.remaining > 0){
         const offlinePeriods = runGameLoopPeriods(maxCatchUp,true);
         if (offlinePeriods > 0 && !global.race.hasOwnProperty('geck')){
             save.setItem('evolved',LZString.compressToUTF16(JSON.stringify(global)));
         }
+        syncOfflineProgressModal();
         return;
     }
 

@@ -5438,6 +5438,48 @@ span.inline {
 .modalBox {
     .tradeOffer();
 
+    &.offlineProgressModal {
+        width: calc(100vw - 2rem);
+        max-width: 32rem;
+
+        .offlineProgressBody {
+            text-align: left;
+        }
+
+        .offlineProgressRows {
+            margin: .75rem 0;
+        }
+
+        .offlineProgressRow {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            margin: .25rem 0;
+
+            span:last-child {
+                text-align: right;
+            }
+        }
+
+        .offlineProgressBar {
+            margin: .75rem 0;
+            text-align: center;
+
+            .progress {
+                margin-bottom: .25rem;
+            }
+        }
+
+        .offlineProgressCap,
+        .offlineProgressActions {
+            text-align: center;
+        }
+
+        .offlineProgressActions {
+            margin-top: .75rem;
+        }
+    }
+
     .market-item {
         display: flex;
         justify-content: center;
@@ -5446,6 +5488,22 @@ span.inline {
     .trade-header {
         border-top: 0;
         padding-top: 0;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .modalBox.offlineProgressModal {
+        .offlineProgressRow {
+            display: block;
+
+            span {
+                display: block;
+            }
+
+            span:last-child {
+                text-align: left;
+            }
+        }
     }
 }
 

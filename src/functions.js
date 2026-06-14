@@ -176,6 +176,21 @@ function offlineProgressState(){
     state.remaining = Number.isFinite(state.remaining) && state.remaining > 0 ? Math.floor(state.remaining) : 0;
     state.period = Number.isFinite(state.period) && state.period > 0 ? state.period : loopTimers().webWorkerMainTimer;
     state.cap = Number.isFinite(state.cap) && state.cap > 0 ? state.cap : offlineProgressConfig.cap;
+
+    if (state.remaining > 0){
+        state.total = Number.isFinite(state.total) && state.total >= state.remaining ? Math.floor(state.total) : state.remaining;
+        state.start = Number.isFinite(state.start) && state.start > 0 ? state.start : Math.max(0,(global.stats.current || Date.now()) - (state.total * state.period));
+        state.end = Number.isFinite(state.end) && state.end > 0 ? state.end : (global.stats.current || Date.now());
+        state.queued = Number.isFinite(state.queued) && state.queued > 0 ? state.queued : state.end;
+        state.capped = state.capped ? true : false;
+        if (!validGameDate(state.gameStart)){
+            state.gameStart = currentGameDate();
+        }
+    }
+    else {
+        clearOfflineProgressMetadata(state);
+    }
+
     syncOfflineProgressDisplay(state);
     return state;
 }
@@ -187,6 +202,27 @@ function syncOfflineProgressDisplay(state = global.stats.offlineProgress){
     else {
         global.settings.at = 0;
     }
+}
+
+function currentGameDate(){
+    return {
+        year: global.city && global.city.calendar && Number.isFinite(global.city.calendar.year) ? global.city.calendar.year : 0,
+        day: global.city && global.city.calendar && Number.isFinite(global.city.calendar.day) ? global.city.calendar.day : 0
+    };
+}
+
+function validGameDate(date){
+    return date && typeof date === 'object' && Number.isFinite(date.year) && Number.isFinite(date.day);
+}
+
+function clearOfflineProgressMetadata(state){
+    state.remaining = 0;
+    state.total = 0;
+    state.start = 0;
+    state.end = 0;
+    state.queued = 0;
+    state.capped = false;
+    state.gameStart = false;
 }
 
 // Queues offline progress for replay using the same loop sequence as online play.
@@ -201,18 +237,29 @@ export function queueOfflineProgress(currentTimestamp,forceCurrentUpdate = false
 
     const timeDiff = currentTimestamp - global.stats.current;
     if (timeDiff >= offlineProgressConfig.threshold){
+        const gapStart = global.stats.current;
         const timers = loopTimers();
         const replayPeriod = timers.webWorkerMainTimer;
         const replayTime = Math.min(timeDiff, offlineProgressConfig.cap);
         const replayPeriods = Math.floor(replayTime / replayPeriod);
 
         if (replayPeriods > 0){
+            const hadReplayQueued = state.remaining > 0;
             if (state.remaining > 0 && state.period !== replayPeriod){
                 state.remaining = Math.floor((state.remaining * state.period) / replayPeriod);
+                state.total = Math.max(state.remaining,Math.floor((state.total * state.period) / replayPeriod));
             }
             state.remaining += replayPeriods;
+            state.total = (hadReplayQueued ? state.total : 0) + replayPeriods;
             state.period = replayPeriod;
             state.cap = offlineProgressConfig.cap;
+            state.start = hadReplayQueued && Number.isFinite(state.start) && state.start > 0 ? Math.min(state.start,gapStart) : gapStart;
+            state.end = currentTimestamp;
+            state.queued = hadReplayQueued && Number.isFinite(state.queued) && state.queued > 0 ? state.queued : currentTimestamp;
+            state.capped = state.capped || timeDiff > replayTime;
+            if (!hadReplayQueued || !validGameDate(state.gameStart)){
+                state.gameStart = currentGameDate();
+            }
         }
 
         global.stats.current = currentTimestamp;
@@ -240,8 +287,17 @@ export function takeOfflineProgressPeriods(maxPeriods){
 
     const periods = Math.min(maxPeriods,state.remaining);
     state.remaining -= periods;
+    if (state.remaining <= 0){
+        clearOfflineProgressMetadata(state);
+    }
     syncOfflineProgressDisplay(state);
     return periods;
+}
+
+export function abortOfflineProgress(){
+    let state = offlineProgressState();
+    clearOfflineProgressMetadata(state);
+    syncOfflineProgressDisplay(state);
 }
 
 window.exportGame = function exportGame(){
