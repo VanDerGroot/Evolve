@@ -225,6 +225,33 @@ function clearOfflineProgressMetadata(state){
     state.gameStart = false;
 }
 
+function ensureResourceTempState(res){
+    if (!tmp_vars.hasOwnProperty('resource') || typeof tmp_vars.resource !== 'object' || tmp_vars.resource === null){
+        tmp_vars.resource = {};
+    }
+    if (!global.resource || !global.resource.hasOwnProperty(res) || !global.resource[res] || typeof global.resource[res] !== 'object'){
+        return false;
+    }
+
+    const max = Number.isFinite(global.resource[res].max) ? global.resource[res].max : 0;
+    const amount = Number.isFinite(global.resource[res].amount) ? global.resource[res].amount : 0;
+    const tempMax = max > 0 ? max + amount : max;
+
+    if (!tmp_vars.resource.hasOwnProperty(res) || typeof tmp_vars.resource[res] !== 'object' || tmp_vars.resource[res] === null){
+        tmp_vars.resource[res] = {
+            color: 'special',
+            tradable: false,
+            stackable: false,
+            temp_max: tempMax
+        };
+    }
+    else if (!Number.isFinite(tmp_vars.resource[res].temp_max)){
+        tmp_vars.resource[res].temp_max = tempMax;
+    }
+
+    return true;
+}
+
 // Queues offline progress for replay using the same loop sequence as online play.
 // `forceCurrentUpdate` refreshes the timestamp even when no progress is queued.
 export function queueOfflineProgress(currentTimestamp,forceCurrentUpdate = false){
@@ -755,7 +782,10 @@ export function resetResBuffer(){
     // During fastLoop, temporarily increase the maximum storage to avoid unfortunate cases where
     // storage cannot be maximized as a result of consuming a resource after it is produced.
     // The resource buffer is eliminated at the end of fastLoop.
-    Object.keys(tmp_vars.resource).forEach(function (res) {
+    Object.keys(global.resource).forEach(function (res) {
+        if (!ensureResourceTempState(res)){
+            return;
+        }
         let temp_max = global.resource[res].max;
         // Don't change infinite storage (-1) into finite storage
         if (temp_max > 0){
@@ -769,6 +799,12 @@ export function modRes(res,val,notrack){
     if(res === 'Food' && global.race['fasting']){
         global.resource[res].amount = 0;
         return false;
+    }
+    if (!global.resource || !global.resource.hasOwnProperty(res) || !global.resource[res]){
+        return false;
+    }
+    if (!notrack){
+        ensureResourceTempState(res);
     }
     let count = global.resource[res].amount + val;
     let success = true;
@@ -2996,6 +3032,7 @@ export function eventActive(event,val){
                             rate: 0
                         };
                     }
+                    ensureResourceTempState('Thermite');
                     return true;
                 }
                 else if (global.city.hasOwnProperty('foundry') && global.city.foundry.hasOwnProperty('Thermite')){
